@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from datetime import date
 
 st.set_page_config(page_title="Pride Profit Pro", page_icon="🦁", layout="wide")
 
@@ -38,7 +39,7 @@ footer { visibility: hidden; }
 
 st.title("🦁 Pride Profit Pro")
 
-tab1, tab2 = st.tabs(["Commission Calculator", "Leaderboard"])
+tab1, tab2 = st.tabs(["Commission Calculator", "Sales Meeting Dashboard"])
 
 with tab1:
     st.subheader("Roofing Commission Calculator")
@@ -58,9 +59,9 @@ with tab1:
     st.success(f"💰 Commission Earned: ${commission:,.2f}")
 
 with tab2:
-    st.subheader("🏆 Sales Leaderboard")
+    st.subheader("🏆 Sales Meeting Dashboard")
 
-    if st.button("🔄 Refresh Leaderboard"):
+    if st.button("🔄 Refresh Dashboard"):
         st.cache_data.clear()
         st.rerun()
 
@@ -86,6 +87,7 @@ with tab2:
             df[deals_col]
             .astype(str)
             .str.replace(",", "", regex=False)
+            .str.replace(",", "", regex=False)
             .str.strip()
         )
 
@@ -99,14 +101,25 @@ with tab2:
             st.stop()
 
         df["Average Contract Value"] = df[sales_col] / df[deals_col]
-
         df = df.sort_values(by=sales_col, ascending=False).reset_index(drop=True)
 
-        # TEAM SALES GOAL TRACKER
         yearly_goal = 4200000
         current_sales = df[sales_col].sum()
         remaining_sales = yearly_goal - current_sales
         progress = current_sales / yearly_goal
+
+        today = date.today()
+        start_of_year = date(today.year, 1, 1)
+        end_of_year = date(today.year, 12, 31)
+
+        days_elapsed = max((today - start_of_year).days + 1, 1)
+        total_days = (end_of_year - start_of_year).days + 1
+        days_remaining = max((end_of_year - today).days, 1)
+
+        expected_sales_by_today = yearly_goal * (days_elapsed / total_days)
+        ahead_or_behind = current_sales - expected_sales_by_today
+        projected_finish = (current_sales / days_elapsed) * total_days
+        weekly_needed = remaining_sales / (days_remaining / 7)
 
         st.subheader("🎯 2026 Team Sales Goal")
 
@@ -126,6 +139,61 @@ with tab2:
 
         st.divider()
 
+        st.subheader("🔥 Pace to Goal")
+
+        pace1, pace2, pace3 = st.columns(3)
+
+        with pace1:
+            st.metric("Expected Sales By Today", f"${expected_sales_by_today:,.2f}")
+
+        with pace2:
+            st.metric("Ahead / Behind Pace", f"${ahead_or_behind:,.2f}")
+
+        with pace3:
+            st.metric("Projected Year-End", f"${projected_finish:,.2f}")
+
+        st.write(f"Weekly Sales Needed to Hit Goal: **${weekly_needed:,.2f}**")
+
+        if projected_finish >= yearly_goal:
+            st.success("🟢 Team is currently on pace to beat the yearly goal.")
+        else:
+            st.warning("🔴 Team is currently behind pace. Time to turn up the heat.")
+
+        st.divider()
+
+        top_rep = df.iloc[0]
+
+        st.subheader("👑 Rep Recognition")
+
+        r1, r2, r3 = st.columns(3)
+
+        with r1:
+            st.metric("Current Leader", top_rep[rep_col])
+
+        with r2:
+            st.metric("Leader Sales", f"${top_rep[sales_col]:,.2f}")
+
+        with r3:
+            st.metric("Contracts", int(top_rep[deals_col]))
+
+        st.success(
+            f"🏆 Rep Spotlight: {top_rep[rep_col]} is leading the team with "
+            f"${top_rep[sales_col]:,.2f} in contracted sales."
+        )
+
+        st.divider()
+
+        st.subheader("📈 Team Momentum Chart")
+
+        chart_df = df[[rep_col, sales_col]].copy()
+        chart_df = chart_df.set_index(rep_col)
+
+        st.bar_chart(chart_df)
+
+        st.divider()
+
+        st.subheader("🏆 Full Leaderboard")
+
         ranks = []
         for i in range(len(df)):
             if i == 0:
@@ -144,12 +212,8 @@ with tab2:
 
         st.dataframe(df, use_container_width=True, hide_index=True)
 
-        st.divider()
-        top_rep = df.iloc[0]
-        st.success(f"👑 Current Leader: {top_rep[rep_col]} — {top_rep[sales_col]}")
-
     except Exception as e:
-        st.error("The leaderboard could not load.")
+        st.error("The dashboard could not load.")
         st.write(e)
 
 st.divider()
