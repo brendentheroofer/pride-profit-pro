@@ -1,158 +1,132 @@
 import streamlit as st
 import pandas as pd
 
-# PAGE SETTINGS
-st.set_page_config(
-    page_title="Pride Profit Pro",
-    page_icon="🦁",
-    layout="wide"
-)
+st.set_page_config(page_title="Pride Profit Pro", page_icon="🦁", layout="wide")
 
-# CUSTOM STYLE
 st.markdown("""
 <style>
-
 [data-testid="stAppViewContainer"] {
     background: linear-gradient(to bottom, #4b1e2f, #2b0f19);
 }
-
+[data-testid="stHeader"] { background: rgba(0,0,0,0); }
 h1, h2, h3 {
     color: #f4c542 !important;
     text-align: center;
+    font-weight: bold;
 }
-
 div, p, label {
     color: white !important;
+    font-size: 18px;
 }
-
-footer {
-    visibility: hidden;
+.stNumberInput input {
+    background-color: white;
+    color: black;
+    border-radius: 10px;
 }
-
+.stSuccess {
+    background-color: #f4c542;
+    color: black;
+    padding: 15px;
+    border-radius: 12px;
+    font-size: 24px;
+    font-weight: bold;
+}
+hr { border-color: #f4c542; }
+footer { visibility: hidden; }
 </style>
 """, unsafe_allow_html=True)
 
-# TITLE
 st.title("🦁 Pride Profit Pro")
 
 tab1, tab2 = st.tabs(["Commission Calculator", "Leaderboard"])
 
-# ---------------- CALCULATOR TAB ----------------
-
 with tab1:
-
     st.subheader("Roofing Commission Calculator")
 
-    job_amount = st.number_input(
-        "Original Job Amount ($)",
-        min_value=0.0,
-        step=100.0
-    )
-
-    supplement_amount = st.number_input(
-        "Supplement Amount ($)",
-        min_value=0.0,
-        step=100.0
-    )
-
-    commission_percent = st.number_input(
-        "Commission Percentage (%)",
-        min_value=0.0,
-        step=1.0
-    )
+    job_amount = st.number_input("Original Job Amount ($)", min_value=0.0, step=100.0)
+    supplement_amount = st.number_input("Supplement Amount ($)", min_value=0.0, step=100.0)
+    commission_percent = st.number_input("Commission Percentage (%)", min_value=0.0, step=1.0)
 
     total_revenue = job_amount + supplement_amount
     commission = total_revenue * (commission_percent / 100)
 
     st.divider()
-
     st.subheader("Commission Summary")
-
     st.write(f"Original Job Amount: ${job_amount:,.2f}")
     st.write(f"Supplement Amount: ${supplement_amount:,.2f}")
     st.write(f"Total Revenue: ${total_revenue:,.2f}")
-
     st.success(f"💰 Commission Earned: ${commission:,.2f}")
 
-# ---------------- LEADERBOARD TAB ----------------
-
 with tab2:
-
     st.subheader("🏆 Sales Leaderboard")
 
-    leaderboard_data = {
-        "Rep": [
-            "Tod",
-            "Steele",
-            "Ernesto",
-            "Stefan",
-            "Kevin",
-            "Hunter",
-            "Jackson"
-        ],
+    if st.button("🔄 Refresh Leaderboard"):
+        st.cache_data.clear()
+        st.rerun()
 
-        "Contracted Sales": [
-            169473.25,
-            159796.52,
-            156821.03,
-            99063.99,
-            41450.00,
-            11166.54,
-            7256.29
-        ],
+    sheet_url = "https://docs.google.com/spreadsheets/d/14iXrynuoHaMO6y17XUw10ujrT-DC0jwcvFN53iIynBE/export?format=csv&gid=0"
 
-        "Deals": [
-            16,
-            13,
-            13,
-            10,
-            11,
-            1,
-            1
-        ]
-    }
+    try:
+        df = pd.read_csv(sheet_url)
+        df.columns = df.columns.str.strip()
 
-    df = pd.DataFrame(leaderboard_data)
+        rep_col = df.columns[0]
+        sales_col = df.columns[1]
+        deals_col = df.columns[2]
 
-    df["Average Deal Size"] = (
-        df["Contracted Sales"] / df["Deals"]
-    )
+        df[sales_col] = (
+            df[sales_col]
+            .astype(str)
+            .str.replace("$", "", regex=False)
+            .str.replace(",", "", regex=False)
+            .str.strip()
+        )
 
-    df = df.sort_values(
-        by="Contracted Sales",
-        ascending=False
-    ).reset_index(drop=True)
+        df[deals_col] = (
+            df[deals_col]
+            .astype(str)
+            .str.replace(",", "", regex=False)
+            .str.strip()
+        )
 
-    # ADD RANKINGS
-    ranks = []
+        df[sales_col] = pd.to_numeric(df[sales_col], errors="coerce")
+        df[deals_col] = pd.to_numeric(df[deals_col], errors="coerce")
 
-    for i in range(len(df)):
+        df = df.dropna(subset=[rep_col, sales_col, deals_col])
 
-        if i == 0:
-            ranks.append("🥇 1")
+        if df.empty:
+            st.warning("No leaderboard data found. Check that your Google Sheet has rep names, sales, and contract numbers filled in.")
+            st.stop()
 
-        elif i == 1:
-            ranks.append("🥈 2")
+        df["Average Contract Value"] = df[sales_col] / df[deals_col]
 
-        elif i == 2:
-            ranks.append("🥉 3")
+        df = df.sort_values(by=sales_col, ascending=False).reset_index(drop=True)
 
-        else:
-            ranks.append(f"{i+1}")
+        ranks = []
+        for i in range(len(df)):
+            if i == 0:
+                ranks.append("🥇 1")
+            elif i == 1:
+                ranks.append("🥈 2")
+            elif i == 2:
+                ranks.append("🥉 3")
+            else:
+                ranks.append(f"{i + 1}")
 
-    df.insert(0, "Rank", ranks)
+        df.insert(0, "Rank", ranks)
 
-    st.dataframe(
-        df,
-        use_container_width=True,
-        hide_index=True
-    )
+        df[sales_col] = df[sales_col].apply(lambda x: f"${x:,.2f}")
+        df["Average Contract Value"] = df["Average Contract Value"].apply(lambda x: f"${x:,.2f}")
 
-    st.divider()
+        st.dataframe(df, use_container_width=True, hide_index=True)
 
-    top_rep = df.iloc[0]
+        st.divider()
+        top_rep = df.iloc[0]
+        st.success(f"👑 Current Leader: {top_rep[rep_col]} — {top_rep[sales_col]}")
 
-    st.success(
-        f"👑 Current Leader: {top_rep['Rep']} — "
-        f"${top_rep['Contracted Sales']:,.2f}"
-    )
+    except Exception as e:
+        st.error("The leaderboard could not load.")
+        st.write(e)
+
+st.divider()
+st.caption("Built for Pride Roofing & Construction")
