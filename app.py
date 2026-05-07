@@ -95,12 +95,36 @@ with tab2:
         df = df.dropna(subset=[rep_col, sales_col, deals_col])
 
         if df.empty:
-            st.warning("No leaderboard data found. Check that your Google Sheet has rep names, sales, and contract numbers filled in.")
+            st.warning("No leaderboard data found. Check your Google Sheet.")
             st.stop()
 
         df["Average Contract Value"] = df[sales_col] / df[deals_col]
 
         df = df.sort_values(by=sales_col, ascending=False).reset_index(drop=True)
+
+        # TEAM SALES GOAL TRACKER
+        yearly_goal = 4200000
+        current_sales = df[sales_col].sum()
+        remaining_sales = yearly_goal - current_sales
+        progress = current_sales / yearly_goal
+
+        st.subheader("🎯 2026 Team Sales Goal")
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric("Yearly Goal", f"${yearly_goal:,.2f}")
+
+        with col2:
+            st.metric("Current Sales", f"${current_sales:,.2f}")
+
+        with col3:
+            st.metric("Remaining", f"${remaining_sales:,.2f}")
+
+        st.progress(min(progress, 1.0))
+        st.write(f"Progress to Goal: {progress * 100:.2f}%")
+
+        st.divider()
 
         ranks = []
         for i in range(len(df)):
