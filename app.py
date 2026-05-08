@@ -87,7 +87,6 @@ with tab2:
             df[deals_col]
             .astype(str)
             .str.replace(",", "", regex=False)
-            .str.replace(",", "", regex=False)
             .str.strip()
         )
 
@@ -162,6 +161,8 @@ with tab2:
         st.divider()
 
         top_rep = df.iloc[0]
+        most_contracts_rep = df.sort_values(by=deals_col, ascending=False).iloc[0]
+        largest_avg_rep = df.sort_values(by="Average Contract Value", ascending=False).iloc[0]
 
         st.subheader("👑 Rep Recognition")
 
@@ -180,6 +181,24 @@ with tab2:
             f"🏆 Rep Spotlight: {top_rep[rep_col]} is leading the team with "
             f"${top_rep[sales_col]:,.2f} in contracted sales."
         )
+
+        st.divider()
+
+        st.subheader("🔥 Extra Leader Banners")
+
+        b1, b2 = st.columns(2)
+
+        with b1:
+            st.success(
+                f"📄 Most Contracts: {most_contracts_rep[rep_col]} — "
+                f"{int(most_contracts_rep[deals_col])} contracts"
+            )
+
+        with b2:
+            st.success(
+                f"💎 Largest Average Contract: {largest_avg_rep[rep_col]} — "
+                f"${largest_avg_rep['Average Contract Value']:,.2f}"
+            )
 
         st.divider()
 
